@@ -28,6 +28,7 @@ class FeatureDataset(Dataset):
 
 class CustomDataLoader(object):
     def __init__(self, params):
+        # 这里的params都是实现定义好的参数
         self.params = params
 
         self.train_batch_size = params.train_batch_size
@@ -36,6 +37,7 @@ class CustomDataLoader(object):
 
         self.data_dir = params.data_dir
         self.max_seq_length = params.max_seq_length
+        # 👇🏻这个是Transformer的预训练模型
         self.tokenizer = BertTokenizer(vocab_file=os.path.join(params.bert_model_dir, 'vocab.txt'),
                                        do_lower_case=False)
         self.data_cache = params.data_cache
@@ -48,13 +50,20 @@ class CustomDataLoader(object):
         Returns:
             tensors (List[Tensors])
         """
-        input_ids = torch.tensor([f.input_ids for f in features], dtype=torch.long)
-        attention_mask = torch.tensor([f.attention_mask for f in features], dtype=torch.long)
-        seq_tags = torch.tensor([f.seq_tag for f in features], dtype=torch.long)
-        poten_relations = torch.tensor([f.relation for f in features], dtype=torch.long)
-        corres_tags = torch.tensor([f.corres_tag for f in features], dtype=torch.long)
-        rel_tags = torch.tensor([f.rel_tag for f in features], dtype=torch.long)
-        tensors = [input_ids, attention_mask, seq_tags, poten_relations, corres_tags, rel_tags]
+        input_ids = torch.tensor(
+            [f.input_ids for f in features], dtype=torch.long)
+        attention_mask = torch.tensor(
+            [f.attention_mask for f in features], dtype=torch.long)
+        seq_tags = torch.tensor(
+            [f.seq_tag for f in features], dtype=torch.long)
+        poten_relations = torch.tensor(
+            [f.relation for f in features], dtype=torch.long)
+        corres_tags = torch.tensor(
+            [f.corres_tag for f in features], dtype=torch.long)
+        rel_tags = torch.tensor(
+            [f.rel_tag for f in features], dtype=torch.long)
+        tensors = [input_ids, attention_mask, seq_tags,
+                   poten_relations, corres_tags, rel_tags]
         return tensors
 
     @staticmethod
@@ -65,8 +74,10 @@ class CustomDataLoader(object):
         Returns:
             tensors (List[Tensors])
         """
-        input_ids = torch.tensor([f.input_ids for f in features], dtype=torch.long)
-        attention_mask = torch.tensor([f.attention_mask for f in features], dtype=torch.long)
+        input_ids = torch.tensor(
+            [f.input_ids for f in features], dtype=torch.long)
+        attention_mask = torch.tensor(
+            [f.attention_mask for f in features], dtype=torch.long)
         triples = [f.triples for f in features]
         input_tokens = [f.input_tokens for f in features]
         tensors = [input_ids, attention_mask, triples, input_tokens]
@@ -78,19 +89,22 @@ class CustomDataLoader(object):
         """
         print("=*=" * 10)
         print("Loading {} data...".format(data_sign))
-        # get features
-        cache_path = os.path.join(self.data_dir, "{}.cache.{}".format(data_sign, str(self.max_seq_length)))
+        # get features获取特征
+        cache_path = os.path.join(self.data_dir, "{}.cache.{}".format(
+            data_sign, str(self.max_seq_length)))
         if os.path.exists(cache_path) and self.data_cache:
             features = torch.load(cache_path)
         else:
-            # get relation to idx
+            # get relation to idx   获取一个relation->idx的dict做映射关系
             with open(self.data_dir / f'rel2id.json', 'r', encoding='utf-8') as f_re:
                 rel2idx = json.load(f_re)[-1]
-            # get examples
+            # get examples  获取数据
             if data_sign in ("train", "val", "test", "pseudo", 'EPO', 'SEO', 'SOO', 'Normal', '1', '2', '3', '4', '5'):
-                examples = read_examples(self.data_dir, data_sign=data_sign, rel2idx=rel2idx)
+                examples = read_examples(
+                    self.data_dir, data_sign=data_sign, rel2idx=rel2idx)
             else:
-                raise ValueError("please notice that the data can only be train/val/test!!")
+                raise ValueError(
+                    "please notice that the data can only be train/val/test!!")
             features = convert_examples_to_features(self.params, examples, self.tokenizer, rel2idx, data_sign,
                                                     ex_params)
             # save data
@@ -105,6 +119,7 @@ class CustomDataLoader(object):
         # InputExamples to InputFeatures
         features = self.get_features(data_sign=data_sign, ex_params=ex_params)
         dataset = FeatureDataset(features)
+        # 一个feature就是一个训练数据
         print(f"{len(features)} {data_sign} data loaded!")
         print("=*=" * 10)
         # construct dataloader
@@ -122,7 +137,8 @@ class CustomDataLoader(object):
             dataloader = DataLoader(dataset, sampler=datasampler, batch_size=self.test_batch_size,
                                     collate_fn=self.collate_fn_test)
         else:
-            raise ValueError("please notice that the data can only be train/val/test !!")
+            raise ValueError(
+                "please notice that the data can only be train/val/test !!")
         return dataloader
 
 
@@ -134,5 +150,5 @@ if __name__ == '__main__':
         'ensure_relpre': True
     }
     dataloader = CustomDataLoader(params)
-    feats = dataloader.get_features(ex_params=ex_params, data_sign='test')
+    feats = dataloader.get_features(ex_params=ex_params, data_sign='train')
     print(feats[7].input_tokens)

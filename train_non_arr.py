@@ -26,7 +26,7 @@ parser.add_argument('--ex_index', type=str, default=1)
 parser.add_argument('--corpus_type', type=str, default="NYT",
                     help="NYT, WebNLG, NYT*, WebNLG*")
 parser.add_argument('--device_id', type=int, default=0, help="GPU index")
-parser.add_argument('--epoch_num', required=True,
+parser.add_argument('--epoch_num', required=True, default=100,
                     type=int, help="number of epochs")
 parser.add_argument('--multi_gpu', action='store_true',
                     help="ensure multi-gpu training")
@@ -107,7 +107,7 @@ def train_and_evaluate(model, params, ex_params, restore_file=None):
     val_loader = dataloader.get_dataloader(
         data_sign='val', ex_params=ex_params)
 
-    # reload weights from restore_file if specified 这里就是从这里恢复训练
+    # reload weights from restore_file if specified
     if restore_file is not None:
         restore_path = os.path.join(
             params.model_dir, args.restore_file + '.pth.tar')

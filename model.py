@@ -57,13 +57,18 @@ class BertForRE(BertPreTrainedModel):
         # pretrain model
         self.bert = BertModel(config)
         # sequence tagging
-        self.sequence_tagging_sub = MultiNonLinearClassifier(config.hidden_size * 2, self.seq_tag_size, params.drop_prob)
-        self.sequence_tagging_obj = MultiNonLinearClassifier(config.hidden_size * 2, self.seq_tag_size, params.drop_prob)
-        self.sequence_tagging_sum = SequenceLabelForSO(config.hidden_size, self.seq_tag_size, params.drop_prob)
+        self.sequence_tagging_sub = MultiNonLinearClassifier(
+            config.hidden_size * 2, self.seq_tag_size, params.drop_prob)
+        self.sequence_tagging_obj = MultiNonLinearClassifier(
+            config.hidden_size * 2, self.seq_tag_size, params.drop_prob)
+        self.sequence_tagging_sum = SequenceLabelForSO(
+            config.hidden_size, self.seq_tag_size, params.drop_prob)
         # global correspondence
-        self.global_corres = MultiNonLinearClassifier(config.hidden_size * 2, 1, params.drop_prob)
+        self.global_corres = MultiNonLinearClassifier(
+            config.hidden_size * 2, 1, params.drop_prob)
         # relation judgement
-        self.rel_judgement = MultiNonLinearClassifier(config.hidden_size, params.rel_num, params.drop_prob)
+        self.rel_judgement = MultiNonLinearClassifier(
+            config.hidden_size, params.rel_num, params.drop_prob)
         self.rel_embedding = nn.Embedding(params.rel_num, config.hidden_size)
 
         self.init_weights()
@@ -95,7 +100,8 @@ class BertForRE(BertPreTrainedModel):
             ex_params: experiment parameters
         """
         # get params for experiments
-        corres_threshold, rel_threshold = ex_params.get('corres_threshold', 0.5), ex_params.get('rel_threshold', 0.1)
+        corres_threshold, rel_threshold = ex_params.get(
+            'corres_threshold', 0.5), ex_params.get('rel_threshold', 0.1)
         # ablation study
         ensure_corres, ensure_rel = ex_params['ensure_corres'], ex_params['ensure_rel']
         # pre-train model
@@ -116,8 +122,10 @@ class BertForRE(BertPreTrainedModel):
         # before fuse relation representation
         if ensure_corres:
             # for every position $i$ in sequence, should concate $j$ to predict.
-            sub_extend = sequence_output.unsqueeze(2).expand(-1, -1, seq_len, -1)  # (bs, s, s, h)
-            obj_extend = sequence_output.unsqueeze(1).expand(-1, seq_len, -1, -1)  # (bs, s, s, h)
+            sub_extend = sequence_output.unsqueeze(
+                2).expand(-1, -1, seq_len, -1)  # (bs, s, s, h)
+            obj_extend = sequence_output.unsqueeze(
+                1).expand(-1, seq_len, -1, -1)  # (bs, s, s, h)
             # batch x seq_len x seq_len x 2*hidden
             corres_pred = torch.cat([sub_extend, obj_extend], 3)
             # (bs, seq_len, seq_len)
@@ -131,7 +139,8 @@ class BertForRE(BertPreTrainedModel):
         if ensure_rel and seq_tags is None:
             # (bs, rel_num)
             rel_pred_onehot = torch.where(torch.sigmoid(rel_pred) > rel_threshold,
-                                          torch.ones(rel_pred.size(), device=rel_pred.device),
+                                          torch.ones(rel_pred.size(),
+                                                     device=rel_pred.device),
                                           torch.zeros(rel_pred.size(), device=rel_pred.device))
 
             # if potential relation is null
@@ -165,9 +174,12 @@ class BertForRE(BertPreTrainedModel):
         # ablation of relation judgement
         elif not ensure_rel and seq_tags is None:
             # construct test data
-            sequence_output = sequence_output.repeat((1, self.rel_num, 1)).view(bs * self.rel_num, seq_len, h)
-            attention_mask = attention_mask.repeat((1, self.rel_num)).view(bs * self.rel_num, seq_len)
-            potential_rels = torch.arange(0, self.rel_num, device=input_ids.device).repeat(bs)
+            sequence_output = sequence_output.repeat(
+                (1, self.rel_num, 1)).view(bs * self.rel_num, seq_len, h)
+            attention_mask = attention_mask.repeat(
+                (1, self.rel_num)).view(bs * self.rel_num, seq_len)
+            potential_rels = torch.arange(
+                0, self.rel_num, device=input_ids.device).repeat(bs)
 
         # (bs/sum(x_i), h)
         rel_emb = self.rel_embedding(potential_rels)
@@ -216,15 +228,19 @@ class BertForRE(BertPreTrainedModel):
         # inference
         else:
             # (sum(x_i), seq_len)
-            pred_seq_sub = torch.argmax(torch.softmax(output_sub, dim=-1), dim=-1)
-            pred_seq_obj = torch.argmax(torch.softmax(output_obj, dim=-1), dim=-1)
+            pred_seq_sub = torch.argmax(
+                torch.softmax(output_sub, dim=-1), dim=-1)
+            pred_seq_obj = torch.argmax(
+                torch.softmax(output_obj, dim=-1), dim=-1)
             # (sum(x_i), 2, seq_len)
-            pred_seqs = torch.cat([pred_seq_sub.unsqueeze(1), pred_seq_obj.unsqueeze(1)], dim=1)
+            pred_seqs = torch.cat(
+                [pred_seq_sub.unsqueeze(1), pred_seq_obj.unsqueeze(1)], dim=1)
             if ensure_corres:
                 corres_pred = torch.sigmoid(corres_pred) * corres_mask
                 # (bs, seq_len, seq_len)
                 pred_corres_onehot = torch.where(corres_pred > corres_threshold,
-                                                 torch.ones(corres_pred.size(), device=corres_pred.device),
+                                                 torch.ones(
+                                                     corres_pred.size(), device=corres_pred.device),
                                                  torch.zeros(corres_pred.size(), device=corres_pred.device))
                 return pred_seqs, pred_corres_onehot, xi, pred_rels
             return pred_seqs, xi, pred_rels
@@ -237,7 +253,8 @@ if __name__ == '__main__':
 
     params = utils.Params()
     # Prepare model
-    bert_config = BertConfig.from_json_file(os.path.join(params.bert_model_dir, 'bert_config.json'))
+    bert_config = BertConfig.from_json_file(
+        os.path.join(params.bert_model_dir, 'bert_config.json'))
     model = BertForRE.from_pretrained(config=bert_config,
                                       pretrained_model_name_or_path=params.bert_model_dir,
                                       params=params)
@@ -245,3 +262,7 @@ if __name__ == '__main__':
 
     for n, _ in model.named_parameters():
         print(n)
+
+    arr = []
+    for i in arr:
+        print(i+1)
